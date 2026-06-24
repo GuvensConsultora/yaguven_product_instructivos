@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_yaguven_product_instructivo_user,yaguven.product.instructivo.user,model_yaguven_product_instructivo,base.group_user,1,0,0,0
+access_yaguven_product_instructivo_sale_manager,yaguven.product.instructivo.sale.manager,model_yaguven_product_instructivo,sales_team.group_sale_manager,1,1,1,1
+access_yaguven_product_instructivo_system,yaguven.product.instructivo.system,model_yaguven_product_instructivo,base.group_system,1,1,1,1

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo noupdate="1">
+
+    <!--
+        Ids de website (CSV) donde la ficha de producto muestra el apartado
+        de Instructivos (actual + histórico por lote). Default: 4 (Mosconi).
+        Los demás sitios no muestran el apartado. Editable en
+        Ajustes > Técnico > Parámetros del sistema.
+    -->
+    <record id="yaguven_instructivos_website_ids_param" model="ir.config_parameter">
+        <field name="key">yaguven_instructivos.website_ids</field>
+        <field name="value">4</field>
+    </record>
+
+</odoo>

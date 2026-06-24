@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!--
+        Apartado "Instructivos" en la ficha de producto (website_sale.product).
+
+        Scoping por parámetro yaguven_instructivos.website_ids (default "4",
+        Mosconi). A diferencia de la card del catálogo —que se renderiza en
+        loop y por eso se filtra a nivel de resolución de vista— la ficha es
+        una sola página por request: un t-if que lee un ir.config_parameter
+        es costo despreciable y deja al cliente habilitar/deshabilitar el
+        apartado por sitio desde Ajustes, sin tocar código.
+
+        El bloque solo aparece si el producto tiene instructivos cargados
+        (fallback: si no hay, no se muestra nada).
+    -->
+    <template id="product_instructivos" inherit_id="website_sale.product">
+        <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="after">
+
+            <t t-set="instr_site_ids"
+               t-value="request.env['ir.config_parameter'].sudo().get_param('yaguven_instructivos.website_ids', '4').split(',')"/>
+
+            <t t-if="str(website.id) in instr_site_ids and product.instructivo_ids">
+                <section id="yaguven_instructivos" class="mt-4">
+                    <h4 class="o_yaguven_instructivos_title">Instructivos de armado</h4>
+
+                    <!-- Instructivo actual -->
+                    <t t-set="actual" t-value="product.instructivo_actual_id"/>
+                    <t t-if="actual">
+                        <div class="mb-2">
+                            <t t-call="yaguven_product_instructivos.instructivo_link">
+                                <t t-set="inst" t-value="actual"/>
+                                <t t-set="etiqueta" t-value="'Instructivo actual'"/>
+                                <t t-set="btn_class" t-value="'btn btn-primary btn-sm'"/>
+                            </t>
+                        </div>
+                    </t>
+
+                    <!-- Históricos por lote (colapsable). Alcance template
+                         (product_id vacío): el render por variante seleccionada
+                         es un ladrillo futuro (resolver_instructivos + JS). -->
+                    <t t-set="historicos"
+                       t-value="product.instructivo_ids.filtered(lambda r: not r.es_actual and not r.product_id)"/>
+                    <t t-if="historicos">
+                        <div class="accordion" id="yaguven_instructivos_hist_acc">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#yaguven_instructivos_hist"
+                                            aria-expanded="false"
+                                            aria-controls="yaguven_instructivos_hist">
+                                        Instructivos históricos por lote
+                                        (<t t-esc="len(historicos)"/>)
+                                    </button>
+                                </h2>
+                                <div id="yaguven_instructivos_hist"
+                                     class="accordion-collapse collapse"
+                                     data-bs-parent="#yaguven_instructivos_hist_acc">
+                                    <div class="accordion-body">
+                                        <ul class="list-unstyled mb-0">
+                                            <li t-foreach="historicos" t-as="inst" class="mb-1">
+                                                <t t-call="yaguven_product_instructivos.instructivo_link">
+                                                    <t t-set="etiqueta"
+                                                       t-value="(inst.lote and ('Lote ' + inst.lote)) or inst.name"/>
+                                                    <t t-set="btn_class" t-value="'btn btn-outline-secondary btn-sm'"/>
+                                                </t>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </section>
+            </t>
+        </xpath>
+    </template>
+
+    <!--
+        Snippet reutilizable: link/descarga de un instructivo.
+        Prioriza el PDF cargado en Odoo (storage A); si no hay, usa la URL
+        pública de fallback (storage B). Si no hay ninguno, no renderiza link.
+        Espera en contexto: inst, etiqueta, btn_class.
+    -->
+    <template id="instructivo_link">
+        <t t-if="inst.archivo">
+            <a t-attf-href="/web/content/yaguven.product.instructivo/#{inst.id}/archivo?download=true&amp;filename=#{inst.archivo_filename or inst.name}"
+               t-att-class="btn_class" target="_blank">
+                <i class="fa fa-file-pdf-o me-1"/><t t-esc="etiqueta"/>
+            </a>
+        </t>
+        <t t-elif="inst.url">
+            <a t-att-href="inst.url" t-att-class="btn_class" target="_blank" rel="noopener">
+                <i class="fa fa-file-pdf-o me-1"/><t t-esc="etiqueta"/>
+            </a>
+        </t>
+    </template>
+
+</odoo>
