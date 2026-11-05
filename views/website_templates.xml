@@ -20,12 +20,25 @@
             <t t-set="instr_site_ids"
                t-value="request.env['ir.config_parameter'].sudo().get_param('yaguven_instructivos.website_ids', '4').split(',')"/>
 
-            <t t-if="str(website.id) in instr_site_ids and product.instructivo_ids">
+            <!--
+                Quién ve la sección: parámetro yaguven_instructivos.visibilidad
+                  "todos"     → cualquier visitante, aun sin usuario
+                  "logueados" → sólo quien entra con su usuario (portal o interno). Default.
+                La lectura es con sudo (sólo lectura, sólo para mostrar): el modelo no da
+                acceso a portal/público, y sin sudo la ficha fallaría con error de acceso.
+            -->
+            <t t-set="instr_visib"
+               t-value="request.env['ir.config_parameter'].sudo().get_param('yaguven_instructivos.visibilidad', 'logueados')"/>
+            <t t-set="instr_puede_ver"
+               t-value="instr_visib == 'todos' or not website.is_public_user()"/>
+            <t t-set="instr_prod" t-value="product.sudo()"/>
+
+            <t t-if="str(website.id) in instr_site_ids and instr_puede_ver and instr_prod.instructivo_ids">
                 <section id="yaguven_instructivos" class="mt-4">
                     <h4 class="o_yaguven_instructivos_title">Instructivos de armado</h4>
 
                     <!-- Instructivo actual -->
-                    <t t-set="actual" t-value="product.instructivo_actual_id"/>
+                    <t t-set="actual" t-value="instr_prod.instructivo_actual_id"/>
                     <t t-if="actual">
                         <div class="mb-2">
                             <t t-call="yaguven_product_instructivos.instructivo_link">
@@ -40,7 +53,7 @@
                          (product_id vacío): el render por variante seleccionada
                          es un ladrillo futuro (resolver_instructivos + JS). -->
                     <t t-set="historicos"
-                       t-value="product.instructivo_ids.filtered(lambda r: not r.es_actual and not r.product_id)"/>
+                       t-value="instr_prod.instructivo_ids.filtered(lambda r: not r.es_actual and not r.product_id)"/>
                     <t t-if="historicos">
                         <div class="accordion" id="yaguven_instructivos_hist_acc">
                             <div class="accordion-item">
