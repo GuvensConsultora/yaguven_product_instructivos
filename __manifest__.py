@@ -6,7 +6,7 @@
         "product.template (no invasivo) y apartado en la ficha del website "
         "Mosconi. No afecta a los demás websites."
     ),
-    "version": "18.0.1.1.0",
+    "version": "18.0.1.2.0",
     "category": "Website",
     "author": "Guvens Consultora",
     "license": "LGPL-3",

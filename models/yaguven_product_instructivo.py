@@ -1,3 +1,5 @@
+import re
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -6,7 +8,8 @@ class YaguvenProductInstructivo(models.Model):
     _name = "yaguven.product.instructivo"
     _description = "Instructivo de armado por producto (con histórico por lote)"
     # El actual primero; luego históricos por secuencia/lote. id como desempate estable.
-    _order = "es_actual desc, sequence, lote desc, id desc"
+    # Se ordena por lote_num (entero), no por lote (texto): como texto "9" quedaba arriba de "45".
+    _order = "es_actual desc, sequence, lote_num desc, id desc"
 
     product_tmpl_id = fields.Many2one(
         "product.template",
@@ -40,6 +43,13 @@ class YaguvenProductInstructivo(models.Model):
         help="Número de lote del instructivo histórico (ej. '131'). "
         "Vacío para el instructivo actual.",
     )
+    lote_num = fields.Integer(
+        string="Lote (número)",
+        compute="_compute_lote_num",
+        store=True,
+        index=True,
+        help="Número de lote como entero, para ordenar los históricos.",
+    )
     es_actual = fields.Boolean(
         string="Es el actual",
         default=False,
@@ -61,6 +71,13 @@ class YaguvenProductInstructivo(models.Model):
     )
     sequence = fields.Integer(string="Secuencia", default=10)
     active = fields.Boolean(string="Activo", default=True)
+
+    @api.depends("lote")
+    def _compute_lote_num(self):
+        # Toma el primer grupo de dígitos del lote ("LOTE 131" -> 131); sin dígitos -> 0.
+        for inst in self:
+            m = re.search(r"\d+", inst.lote or "")
+            inst.lote_num = int(m.group()) if m else 0
 
     @api.onchange("product_id")
     def _onchange_product_id(self):

@@ -10,7 +10,7 @@
             <xpath expr="//notebook" position="inside">
                 <page string="Instructivos" name="instructivos">
                     <field name="instructivo_ids">
-                        <list editable="bottom" default_order="es_actual desc, sequence, lote desc">
+                        <list editable="bottom" default_order="es_actual desc, sequence, lote_num desc">
                             <field name="sequence" widget="handle"/>
                             <field name="es_actual"/>
                             <field name="lote"/>
