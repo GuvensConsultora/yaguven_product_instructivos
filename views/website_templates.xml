@@ -2,110 +2,160 @@
 <odoo>
 
     <!--
-        Apartado "Instructivos" en la ficha de producto (website_sale.product).
+        Ficha de producto del sitio Mosconi: tres bloques según la propuesta de
+        Mosconi del 10/11 (fuente/Propuesta-Mosconi-Instructivos.html):
 
-        Scoping por parámetro yaguven_instructivos.website_ids (default "4",
-        Mosconi). A diferencia de la card del catálogo —que se renderiza en
-        loop y por eso se filtra a nivel de resolución de vista— la ficha es
-        una sola página por request: un t-if que lee un ir.config_parameter
-        es costo despreciable y deja al cliente habilitar/deshabilitar el
-        apartado por sitio desde Ajustes, sin tocar código.
+          1. Información del producto: instructivo vigente + «Ver instructivos
+             anteriores por lote» (cerrado) + Ficha técnica + Imágenes.
+          2. ¿Dónde comprar este producto?  → «Tiendas oficiales»
+          3. ¿Tenés dudas sobre este producto? → «Consultar»
 
-        El bloque solo aparece si el producto tiene instructivos cargados
-        (fallback: si no hay, no se muestra nada).
+        Sitio: parámetro yaguven_instructivos.website_ids (default "4", Mosconi).
+        CrazyCompras (website 1) NO lleva estos bloques.
+
+        Quién ve: parámetro yaguven_instructivos.visibilidad ("todos" / "logueados").
+        Mosconi definió el 10/11 que todo es público → "todos".
+
+        Links (vacío = el botón no aparece):
+          mosconi.vendedores_url          → Tiendas oficiales (el mismo del ex «Ver en vendedores»)
+          yaguven_instructivos.consultar_url → Consultar
+
+        Cada renglón aparece sólo si tiene qué descargar; si no queda ninguno,
+        el bloque 1 entero no se muestra.
     -->
     <template id="product_instructivos" inherit_id="website_sale.product">
         <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="after">
 
+            <t t-set="instr_param" t-value="request.env['ir.config_parameter'].sudo()"/>
             <t t-set="instr_site_ids"
-               t-value="request.env['ir.config_parameter'].sudo().get_param('yaguven_instructivos.website_ids', '4').split(',')"/>
-
-            <!--
-                Quién ve la sección: parámetro yaguven_instructivos.visibilidad
-                  "todos"     → cualquier visitante, aun sin usuario
-                  "logueados" → sólo quien entra con su usuario (portal o interno). Default.
-                La lectura es con sudo (sólo lectura, sólo para mostrar): el modelo no da
-                acceso a portal/público, y sin sudo la ficha fallaría con error de acceso.
-            -->
+               t-value="instr_param.get_param('yaguven_instructivos.website_ids', '4').split(',')"/>
             <t t-set="instr_visib"
-               t-value="request.env['ir.config_parameter'].sudo().get_param('yaguven_instructivos.visibilidad', 'logueados')"/>
-            <t t-set="instr_puede_ver"
-               t-value="instr_visib == 'todos' or not website.is_public_user()"/>
-            <t t-set="instr_prod" t-value="product.sudo()"/>
+               t-value="instr_param.get_param('yaguven_instructivos.visibilidad', 'logueados')"/>
 
-            <t t-if="str(website.id) in instr_site_ids and instr_puede_ver and instr_prod.instructivo_ids">
-                <section id="yaguven_instructivos" class="mt-4">
-                    <h4 class="o_yaguven_instructivos_title">Instructivos de armado</h4>
+            <t t-if="str(website.id) in instr_site_ids and (instr_visib == 'todos' or not website.is_public_user())">
+                <!-- sudo: sólo lectura para mostrar; el modelo de instructivos no da acceso a público -->
+                <t t-set="instr_prod" t-value="product.sudo()"/>
+                <t t-set="actual" t-value="instr_prod.instructivo_actual_id"/>
+                <t t-set="historicos"
+                   t-value="instr_prod.instructivo_ids.filtered(lambda r: not r.es_actual and not r.product_id and (r.archivo or r.url))"/>
+                <t t-set="ficha_href"
+                   t-value="(instr_prod.ficha_tecnica and '/yaguven/producto/%s/ficha-tecnica' % instr_prod.id) or instr_prod.ficha_tecnica_url"/>
+                <t t-set="hay_imagenes" t-value="bool(instr_prod.yaguven_imagenes_descarga())"/>
+                <t t-set="url_tiendas" t-value="instr_param.get_param('mosconi.vendedores_url', '/donde-comprar')"/>
+                <t t-set="url_consultar" t-value="instr_param.get_param('yaguven_instructivos.consultar_url', '')"/>
 
-                    <!-- Instructivo actual -->
-                    <t t-set="actual" t-value="instr_prod.instructivo_actual_id"/>
-                    <t t-if="actual">
-                        <div class="mb-2">
-                            <t t-call="yaguven_product_instructivos.instructivo_link">
-                                <t t-set="inst" t-value="actual"/>
-                                <t t-set="etiqueta" t-value="'Instructivo actual'"/>
-                                <t t-set="btn_class" t-value="'btn btn-primary btn-sm'"/>
-                            </t>
-                        </div>
-                    </t>
+                <div id="yaguven_ficha_bloques" class="o_yaguven_ficha mt-4">
 
-                    <!-- Históricos por lote (colapsable). Alcance template
-                         (product_id vacío): el render por variante seleccionada
-                         es un ladrillo futuro (resolver_instructivos + JS). -->
-                    <t t-set="historicos"
-                       t-value="instr_prod.instructivo_ids.filtered(lambda r: not r.es_actual and not r.product_id)"/>
-                    <t t-if="historicos">
-                        <div class="accordion" id="yaguven_instructivos_hist_acc">
-                            <div class="accordion-item">
-                                <h2 class="accordion-header">
-                                    <button class="accordion-button collapsed" type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#yaguven_instructivos_hist"
-                                            aria-expanded="false"
-                                            aria-controls="yaguven_instructivos_hist">
-                                        Instructivos históricos por lote
-                                        (<t t-esc="len(historicos)"/>)
-                                    </button>
-                                </h2>
-                                <div id="yaguven_instructivos_hist"
-                                     class="accordion-collapse collapse"
-                                     data-bs-parent="#yaguven_instructivos_hist_acc">
-                                    <div class="accordion-body">
-                                        <ul class="list-unstyled mb-0">
-                                            <li t-foreach="historicos" t-as="inst" class="mb-1">
-                                                <t t-call="yaguven_product_instructivos.instructivo_link">
-                                                    <t t-set="etiqueta"
-                                                       t-value="(inst.lote and ('Lote ' + inst.lote)) or inst.name"/>
-                                                    <t t-set="btn_class" t-value="'btn btn-outline-secondary btn-sm'"/>
-                                                </t>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
+                    <!-- 1. Información del producto -->
+                    <section t-if="(actual and (actual.archivo or actual.url)) or historicos or ficha_href or hay_imagenes"
+                             class="o_yaguven_card" aria-labelledby="yaguven_info_titulo">
+                        <h2 id="yaguven_info_titulo" class="o_yaguven_card_titulo">Información del producto</h2>
+
+                        <div t-if="(actual and (actual.archivo or actual.url)) or historicos" class="o_yaguven_recurso">
+                            <div class="o_yaguven_fila">
+                                <i class="fa fa-wrench o_yaguven_icono" aria-hidden="true"/>
+                                <div class="o_yaguven_copy"><strong>Instructivo de armado</strong></div>
                             </div>
+
+                            <div t-if="actual and (actual.archivo or actual.url)" class="o_yaguven_descarga">
+                                <div class="o_yaguven_copy">
+                                    <strong>Instructivo vigente</strong>
+                                    <small>Versión actual del producto</small>
+                                </div>
+                                <t t-call="yaguven_product_instructivos.instructivo_link">
+                                    <t t-set="inst" t-value="actual"/>
+                                    <t t-set="etiqueta" t-value="'Descargar PDF'"/>
+                                    <t t-set="btn_class" t-value="'o_yaguven_btn o_yaguven_btn_primario'"/>
+                                </t>
+                            </div>
+
+                            <details t-if="historicos" class="o_yaguven_lotes">
+                                <summary>
+                                    Ver instructivos anteriores por lote
+                                    <i class="fa fa-chevron-down o_yaguven_chevron" aria-hidden="true"/>
+                                </summary>
+                                <div class="o_yaguven_lotes_cuerpo">
+                                    <p>Buscá el número de lote en la etiqueta de la caja.</p>
+                                    <ul>
+                                        <li t-foreach="historicos" t-as="inst">
+                                            <span t-esc="(inst.lote and ('Lote ' + inst.lote)) or inst.name"/>
+                                            <t t-call="yaguven_product_instructivos.instructivo_link">
+                                                <t t-set="etiqueta" t-value="'Descargar PDF'"/>
+                                                <t t-set="btn_class" t-value="'o_yaguven_link_lote'"/>
+                                            </t>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </details>
                         </div>
-                    </t>
-                </section>
+
+                        <div t-if="ficha_href" class="o_yaguven_recurso o_yaguven_fila">
+                            <i class="fa fa-file-text-o o_yaguven_icono" aria-hidden="true"/>
+                            <div class="o_yaguven_copy">
+                                <strong>Ficha técnica</strong>
+                                <small>Medidas, materiales y especificaciones</small>
+                            </div>
+                            <a t-att-href="ficha_href" class="o_yaguven_btn" target="_blank" rel="noopener">
+                                <i class="fa fa-download me-1" aria-hidden="true"/>Descargar
+                            </a>
+                        </div>
+
+                        <div t-if="hay_imagenes" class="o_yaguven_recurso o_yaguven_fila">
+                            <i class="fa fa-picture-o o_yaguven_icono" aria-hidden="true"/>
+                            <div class="o_yaguven_copy">
+                                <strong>Imágenes del producto</strong>
+                                <small>Fotos para uso comercial</small>
+                            </div>
+                            <a t-attf-href="/yaguven/producto/#{instr_prod.id}/imagenes" class="o_yaguven_btn">
+                                <i class="fa fa-download me-1" aria-hidden="true"/>Descargar
+                            </a>
+                        </div>
+                    </section>
+
+                    <!-- 2. ¿Dónde comprar este producto? -->
+                    <section t-if="url_tiendas" class="o_yaguven_card o_yaguven_card_otro">
+                        <div class="o_yaguven_fila">
+                            <i class="fa fa-shopping-bag o_yaguven_icono" aria-hidden="true"/>
+                            <div class="o_yaguven_copy">
+                                <strong>¿Dónde comprar este producto?</strong>
+                                <small>Encontralo en nuestros canales oficiales de venta.</small>
+                            </div>
+                            <a t-att-href="url_tiendas" class="o_yaguven_btn">Tiendas oficiales</a>
+                        </div>
+                    </section>
+
+                    <!-- 3. ¿Tenés dudas sobre este producto? -->
+                    <section t-if="url_consultar" class="o_yaguven_card o_yaguven_card_otro">
+                        <div class="o_yaguven_fila">
+                            <i class="fa fa-comments-o o_yaguven_icono" aria-hidden="true"/>
+                            <div class="o_yaguven_copy">
+                                <strong>¿Tenés dudas sobre este producto?</strong>
+                                <small>Estamos para ayudarte.</small>
+                            </div>
+                            <a t-att-href="url_consultar" class="o_yaguven_btn" target="_blank" rel="noopener">Consultar</a>
+                        </div>
+                    </section>
+
+                </div>
             </t>
         </xpath>
     </template>
 
     <!--
-        Snippet reutilizable: link/descarga de un instructivo.
-        Prioriza el PDF cargado en Odoo (storage A); si no hay, usa la URL
-        pública de fallback (storage B). Si no hay ninguno, no renderiza link.
-        Espera en contexto: inst, etiqueta, btn_class.
+        Link de descarga de un instructivo. Prioriza el PDF cargado en Odoo
+        (servido por /yaguven/instructivo/<id>/pdf, que funciona también para
+        visitantes sin usuario); si no hay, usa la URL pública. Sin ninguno, no
+        renderiza nada. Espera en contexto: inst, etiqueta, btn_class.
     -->
     <template id="instructivo_link">
         <t t-if="inst.archivo">
-            <a t-attf-href="/web/content/yaguven.product.instructivo/#{inst.id}/archivo?download=true&amp;filename=#{inst.archivo_filename or inst.name}"
-               t-att-class="btn_class" target="_blank">
-                <i class="fa fa-file-pdf-o me-1"/><t t-esc="etiqueta"/>
+            <a t-attf-href="/yaguven/instructivo/#{inst.id}/pdf" t-att-class="btn_class">
+                <i class="fa fa-file-pdf-o me-1" aria-hidden="true"/><t t-esc="etiqueta"/>
             </a>
         </t>
         <t t-elif="inst.url">
             <a t-att-href="inst.url" t-att-class="btn_class" target="_blank" rel="noopener">
-                <i class="fa fa-file-pdf-o me-1"/><t t-esc="etiqueta"/>
+                <i class="fa fa-file-pdf-o me-1" aria-hidden="true"/><t t-esc="etiqueta"/>
             </a>
         </t>
     </template>

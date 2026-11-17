@@ -1,3 +1,5 @@
+import base64
+
 from odoo import api, fields, models
 
 
@@ -21,6 +23,40 @@ class ProductTemplate(models.Model):
         string="Cant. instructivos",
         compute="_compute_instructivo_actual",
     )
+
+    # Ficha técnica para descargar desde la web. Campos nuevos del módulo, no
+    # redefine ningún nativo (C.2). Misma lógica que el instructivo: el PDF
+    # cargado en Odoo tiene prioridad; si no hay, se usa el link público.
+    # Ambos vacíos = la web no muestra el renglón.
+    ficha_tecnica = fields.Binary(
+        string="Ficha técnica (PDF)",
+        attachment=True,
+        help="PDF con medidas, materiales y especificaciones del producto.",
+    )
+    ficha_tecnica_filename = fields.Char(string="Nombre de archivo de la ficha técnica")
+    ficha_tecnica_url = fields.Char(
+        string="Ficha técnica (link)",
+        help="Link público a la ficha técnica. Se usa si no hay PDF cargado.",
+    )
+
+    def yaguven_imagenes_descarga(self):
+        """Fotos del producto para el .zip de la web, en bytes y sin repetidas:
+        principal, extra del template y las propias de cada variante.
+        La ficha usa esta misma función para decidir si muestra el botón."""
+        self.ensure_one()
+        tmpl = self.sudo()
+        candidatas = [tmpl.image_1920]
+        candidatas += tmpl.product_template_image_ids.mapped("image_1920")
+        for variante in tmpl.product_variant_ids:
+            candidatas.append(variante.image_variant_1920)
+            candidatas += variante.product_variant_image_ids.mapped("image_1920")
+        vistas, imagenes = set(), []
+        for b64 in candidatas:
+            if not b64 or b64 in vistas:
+                continue
+            vistas.add(b64)
+            imagenes.append(base64.b64decode(b64))
+        return imagenes
 
     @api.depends("instructivo_ids", "instructivo_ids.es_actual", "instructivo_ids.product_id")
     def _compute_instructivo_actual(self):
