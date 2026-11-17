@@ -37,7 +37,11 @@
             <t t-set="instr_visib"
                t-value="instr_param.get_param('yaguven_instructivos.visibilidad', 'logueados')"/>
 
-            <t t-if="instr_visib == 'todos' or not website.is_public_user()">
+            <!-- Doble resguardo: además del website_id de la vista, la condición
+                 de sitio va acá. CrazyCompras (website 1) no dibuja nada. -->
+            <span id="yaguven_ficha_version" class="d-none" data-version="18.0.2.0.2"
+                  t-att-data-sitio="website.id"/>
+            <t t-if="website.id == 4 and (instr_visib == 'todos' or not website.is_public_user())">
                 <!-- sudo: sólo lectura para mostrar; el modelo de instructivos no da acceso a público -->
                 <t t-set="instr_prod" t-value="product.sudo()"/>
                 <t t-set="actual" t-value="instr_prod.instructivo_actual_id"/>
