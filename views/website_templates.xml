@@ -10,8 +10,9 @@
           2. ¿Dónde comprar este producto?  → «Tiendas oficiales»
           3. ¿Tenés dudas sobre este producto? → «Consultar»
 
-        Sitio: parámetro yaguven_instructivos.website_ids (default "4", Mosconi).
-        CrazyCompras (website 1) NO lleva estos bloques.
+        Sitio: SÓLO Mosconi (website_id = 4 en la vista). CrazyCompras (website 1)
+        no recibe esta vista: su ficha queda como la nativa + sus propios módulos.
+        El parámetro yaguven_instructivos.website_ids ya no se usa.
 
         Quién ve: parámetro yaguven_instructivos.visibilidad ("todos" / "logueados").
         Mosconi definió el 10/11 que todo es público → "todos".
@@ -23,16 +24,20 @@
         Cada renglón aparece sólo si tiene qué descargar; si no queda ninguno,
         el bloque 1 entero no se muestra.
     -->
-    <template id="product_instructivos" inherit_id="website_sale.product">
+    <record id="product_instructivos" model="ir.ui.view">
+        <field name="name">website_sale.product.yaguven_bloques.mosconi</field>
+        <field name="inherit_id" ref="website_sale.product"/>
+        <!-- SÓLO sitio Mosconi (website 4): la vista ni se aplica en CrazyCompras,
+             que conserva su ficha sin cambios. Mismo criterio que mosconi_website_sale. -->
+        <field name="website_id" eval="4"/>
+        <field name="arch" type="xml">
         <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="after">
 
             <t t-set="instr_param" t-value="request.env['ir.config_parameter'].sudo()"/>
-            <t t-set="instr_site_ids"
-               t-value="instr_param.get_param('yaguven_instructivos.website_ids', '4').split(',')"/>
             <t t-set="instr_visib"
                t-value="instr_param.get_param('yaguven_instructivos.visibilidad', 'logueados')"/>
 
-            <t t-if="str(website.id) in instr_site_ids and (instr_visib == 'todos' or not website.is_public_user())">
+            <t t-if="instr_visib == 'todos' or not website.is_public_user()">
                 <!-- sudo: sólo lectura para mostrar; el modelo de instructivos no da acceso a público -->
                 <t t-set="instr_prod" t-value="product.sudo()"/>
                 <t t-set="actual" t-value="instr_prod.instructivo_actual_id"/>
@@ -139,7 +144,8 @@
                 </div>
             </t>
         </xpath>
-    </template>
+        </field>
+    </record>
 
     <!--
         Link de descarga de un instructivo. Prioriza el PDF cargado en Odoo

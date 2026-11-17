@@ -6,7 +6,7 @@
         "product.template (no invasivo) y ficha web del sitio Mosconi en tres bloques "
         "(información, dónde comprar, consultas). No afecta a los demás websites."
     ),
-    "version": "18.0.2.0.0",
+    "version": "18.0.2.0.1",
     "category": "Website",
     "author": "Guvens Consultora",
     "license": "LGPL-3",
